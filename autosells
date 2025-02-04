@@ -1,0 +1,118 @@
+local HttpService = game:GetService("HttpService")
+
+local url = "https://temesssss.pythonanywhere.com/get_all"
+
+local function sendGetRequest(url)
+    local success, response = pcall(function()
+        return http_request({
+            Url = url,
+            Method = 'GET', -- Изменен на GET
+            Headers = {
+                ['Content-Type'] = 'application/json'
+            },
+        })
+    end)
+
+    if success then
+        print("Response received:")
+        local data = HttpService:JSONDecode(response.Body)  -- Парсим JSON в таблицу
+        return data
+    else
+        warn("Request failed:", response)
+        return nil
+    end
+end
+
+while true do
+    while true do
+        local parsedData = sendGetRequest(url)
+    
+        if parsedData then
+            task.wait(5)
+            local TradeRequest = game:GetService("ReplicatedStorage"):WaitForChild("Trade"):WaitForChild("GetTradeStatus"):InvokeServer()
+                print("TradeRequest:", TradeRequest)
+            if TradeRequest == "ReceivingRequest" then
+                usernamebuyer = nil
+                local hasLobby = game:GetService("Players").LocalPlayer.PlayerGui.MainGUI:FindFirstChild("Lobby") ~= nil
+                if hasLobby == true then
+                    usernamebuyer = game:GetService("Players").LocalPlayer.PlayerGui.MainGUI.Lobby.Leaderboard.Container.OverlayMenu.TradeRequest.ReceivingRequest.Username.Text
+                else
+                    usernamebuyer = game:GetService("Players").LocalPlayer.PlayerGui.MainGUI.Game.Leaderboard.Container.TradeRequest.ReceivingRequest.Username.Text
+                end
+                print(hasLobby)
+                local itemToOffer = nil
+                local itemCoint = nil
+                local isFound = false
+                for _, entry in ipairs(parsedData) do
+                    if entry.name:lower() == usernamebuyer:lower() then
+                        isFound = true
+                        print("Nick Found! Item:", entry.item, "Count:", entry.count)
+                        itemToOffer = entry.item
+                        itemCoint = entry.count
+                        print(itemToOffer)
+                        break
+                    end
+                end
+    
+                if isFound then
+                    game:GetService("ReplicatedStorage"):WaitForChild("Trade"):WaitForChild("AcceptRequest"):FireServer()
+                    task.wait(3)
+                    print(itemToOffer)
+                    for i = 1, itemCoint do
+                        local args = {
+                            [1] = itemToOffer,
+                            [2] = "Weapons"
+                        }
+                        
+                        game:GetService("ReplicatedStorage"):WaitForChild("Trade"):WaitForChild("OfferItem"):FireServer(unpack(args))
+                        task.wait(0.2)
+                    end
+                    local TradeAccepted = nil
+                    for i = 1, 45 do
+                        task.wait(1)
+                        local TradeAcceptedCheck = nil
+                        if hasLobby == true then
+                            TradeAcceptedCheck = game:GetService("Players").LocalPlayer.PlayerGui.TradeGUI_Phone.Container.Trade.TheirOffer.Accepted.Visible
+                        else
+                            TradeAcceptedCheck = game:GetService("Players").LocalPlayer.PlayerGui.TradeGUI.Container.Trade.TheirOffer.Accepted.Visible
+                        end
+                        if TradeAcceptedCheck == true then
+                            TradeAccepted = true
+                            local args = {
+                                [1] = 285646582
+                            }
+                            
+                            game:GetService("ReplicatedStorage"):WaitForChild("Trade"):WaitForChild("AcceptTrade"):FireServer(unpack(args))
+
+                            local success, response = pcall(function()
+                                return http_request({
+                                    Url = 'https://temesssss.pythonanywhere.com/del?names=' .. usernamebuyer .. '&item=' .. itemToOffer .. '&count=' .. itemCoint,
+                                    Method = 'GET',
+                                    Headers = {
+                                        ['Content-Type'] = 'application/json'
+                                    },
+                                })
+                            end)
+                        
+                            if success then
+                                local data = HttpService:JSONDecode(response.Body)
+                                break
+                            else
+                                warn("Request failed:", response)
+                                return nil
+                            end
+                            break
+                        end 
+                    end
+                    if TradeAccepted == "nil" then
+                        print("Отклоняем трейд, произошло максимальное кол-во попыток")
+                        break
+                    end
+                else
+                    game:GetService("ReplicatedStorage"):WaitForChild("Trade"):WaitForChild("DeclineRequest"):FireServer()
+                end
+            end
+        end
+        task.wait(5)
+    end
+end

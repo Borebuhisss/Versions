@@ -1,0 +1,24 @@
+local UserInputService = game:GetService("UserInputService")
+
+-- Отключаем значок мыши
+UserInputService.MouseIconEnabled = false
+
+-- Функция блокировки ввода
+local function BlockInput(input, gameProcessed)
+    return true -- Полностью блокирует любое действие
+end
+
+-- Подключаем обработчик
+local Connection1 = UserInputService.InputBegan:Connect(BlockInput)
+local Connection2 = UserInputService.InputChanged:Connect(BlockInput)
+local Connection3 = UserInputService.InputEnded:Connect(BlockInput)
+
+-- Как разблокировать управление
+local function UnblockInput()
+    Connection1:Disconnect()
+    Connection2:Disconnect()
+    Connection3:Disconnect()
+    UserInputService.MouseIconEnabled = true
+end
+
+-- Разблокировать можно вызовом UnblockInput()

